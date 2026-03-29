@@ -6,7 +6,7 @@ const auth      = require('../middleware/auth');
 
 const router = express.Router();
 
-const DOMINIO_VALIDO = '@soysiglo21.edu.ar';
+const DOMINIO_VALIDO = '@soysiglo.21.edu.ar';
 
 // ─── POST /api/auth/register ─────────────────────────────────────────────────
 router.post('/register', async (req, res) => {

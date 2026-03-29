@@ -10,7 +10,8 @@ const paymentRoutes = require('./src/routes/payments');
 const ratingRoutes  = require('./src/routes/ratings');
 
 const app = express();
-
+// ← AGREGAR ESTA LÍNEA (Railway corre detrás de un proxy)
+app.set('trust proxy', 1);
 // ─── Middlewares ────────────────────────────────────────────────────────────
 app.use(cors({
   origin: process.env.FRONTEND_URL || '*',
