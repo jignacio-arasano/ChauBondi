@@ -104,7 +104,7 @@ export default function Login() {
 
         <div className="alert alert-info" style={{ marginTop: 32 }}>
           <strong>Solo para estudiantes</strong> de Universidad Siglo 21 Córdoba.
-          Necesitás tu correo <code>@soysiglo21.edu.ar</code>.
+          Necesitás tu correo <code>@soysiglo.21.edu.ar</code>.
         </div>
       </div>
     </div>

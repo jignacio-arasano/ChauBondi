@@ -269,7 +269,7 @@ export default function TripDetail() {
                 {confirm ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div className="alert alert-error" style={{ fontSize: '0.82rem' }}>
-                      ⚠️ ¿Seguro que querés salir? Los $200 no se reembolsan.
+                      ⚠️ ¿Seguro que querés salir?.
                     </div>
                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                       <button className="btn btn-secondary" onClick={() => setConfirm(false)}>Cancelar</button>

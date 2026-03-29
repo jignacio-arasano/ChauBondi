@@ -66,13 +66,13 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'La fecha debe ser en el futuro.' });
     }
 
-    // Verificar que no tenga un viaje similar activo el mismo día
+    // Verificar duplicado del creador (mismo tipo + día)
     const startOfDay = new Date(fechaViaje);
     startOfDay.setHours(0, 0, 0, 0);
     const endOfDay = new Date(fechaViaje);
     endOfDay.setHours(23, 59, 59, 999);
 
-    const { data: existing } = await supabase
+    const { data: myDuplicate } = await supabase
       .from('viajes')
       .select('id')
       .eq('id_creador', req.user.id)
@@ -81,9 +81,25 @@ router.post('/', auth, async (req, res) => {
       .gte('fecha_hora', startOfDay.toISOString())
       .lte('fecha_hora', endOfDay.toISOString());
 
-    if (existing && existing.length > 0) {
+    if (myDuplicate && myDuplicate.length > 0) {
       return res.status(409).json({
         error: 'Ya tenés un viaje del mismo tipo publicado para ese día.'
+      });
+    }
+
+    // Verificar duplicado global (misma zona + fecha/hora exacta)
+    const fechaIso = fechaViaje.toISOString();
+    const { data: globalDuplicate } = await supabase
+      .from('viajes')
+      .select('id')
+      .eq('tipo', tipo)
+      .eq('zona_comun', zona_comun)
+      .eq('fecha_hora', fechaIso)
+      .eq('activo', true);
+
+    if (globalDuplicate && globalDuplicate.length > 0) {
+      return res.status(409).json({
+        error: 'Ya existe un viaje en esa zona a esa misma hora. Buscalo en la lista y unite.'
       });
     }
 

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { api } from '../api';
 import TripCard from '../components/TripCard';
@@ -25,31 +25,21 @@ const ZONAS = [
 ];
 
 export default function Search() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [searchParams] = useSearchParams();
 
-  const [tipo,   setTipo]   = useState(searchParams.get('tipo') || '');
-  const [zona,   setZona]   = useState('');
-  const [fecha,  setFecha]  = useState('');
-  const [trips,  setTrips]  = useState([]);
+  const [tipo,    setTipo]    = useState(searchParams.get('tipo') || '');
+  const [zona,    setZona]    = useState('');
+  const [fecha,   setFecha]   = useState('');
+  const [trips,   setTrips]   = useState([]);
   const [loading, setLoading] = useState(false);
-  const [searched, setSearched] = useState(false);
 
-  // Buscar automáticamente si viene con tipo desde Home
-  useEffect(() => {
-    if (searchParams.get('tipo')) {
-      buscar();
-    }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  async function buscar() {
+  const buscar = useCallback(async (t, z, f) => {
     setLoading(true);
-    setSearched(true);
     try {
       const params = {};
-      if (tipo)  params.tipo  = tipo;
-      if (zona)  params.zona  = zona;
-      if (fecha) params.fecha = fecha;
+      if (t) params.tipo  = t;
+      if (z) params.zona  = z;
+      if (f) params.fecha = f;
       const data = await api.trips.list(params);
       setTrips(data);
     } catch (err) {
@@ -57,11 +47,12 @@ export default function Search() {
     } finally {
       setLoading(false);
     }
-  }
+  }, []);
 
-  function handleTipo(t) {
-    setTipo(prev => prev === t ? '' : t);
-  }
+  // Buscar automáticamente cada vez que cambia cualquier filtro
+  useEffect(() => {
+    buscar(tipo, zona, fecha);
+  }, [tipo, zona, fecha, buscar]);
 
   const today = new Date().toISOString().split('T')[0];
 
@@ -81,7 +72,7 @@ export default function Search() {
           <div className="segment" style={{ marginBottom: 12 }}>
             <button
               className={`segment-btn ${tipo === 'IDA' ? 'active' : ''}`}
-              onClick={() => handleTipo('IDA')}
+              onClick={() => setTipo('IDA')}
             >🎓 Al Campus</button>
             <button
               className={`segment-btn ${tipo === '' ? 'active' : ''}`}
@@ -89,7 +80,7 @@ export default function Search() {
             >Todos</button>
             <button
               className={`segment-btn ${tipo === 'VUELTA' ? 'active' : ''}`}
-              onClick={() => handleTipo('VUELTA')}
+              onClick={() => setTipo('VUELTA')}
             >🏠 A casa</button>
           </div>
 
@@ -107,19 +98,14 @@ export default function Search() {
           </select>
 
           {/* Fecha */}
-          <div style={{ display: 'flex', gap: 10 }}>
-            <input
-              className="input"
-              type="date"
-              value={fecha}
-              min={today}
-              onChange={e => setFecha(e.target.value)}
-              style={{ flex: 1, fontSize: '0.9rem', colorScheme: 'dark' }}
-            />
-            <button className="btn btn-primary" onClick={buscar} style={{ padding: '13px 20px' }}>
-              Buscar
-            </button>
-          </div>
+          <input
+            className="input"
+            type="date"
+            value={fecha}
+            min={today}
+            onChange={e => setFecha(e.target.value)}
+            style={{ fontSize: '0.9rem', colorScheme: 'dark' }}
+          />
         </div>
       </div>
 
@@ -128,12 +114,6 @@ export default function Search() {
         {loading ? (
           <div style={{ display: 'flex', justifyContent: 'center', padding: 60 }}>
             <div className="spinner" />
-          </div>
-        ) : !searched ? (
-          <div className="empty-state">
-            <div className="icon">🔍</div>
-            <h3 style={{ fontFamily: 'var(--font-head)', fontSize: '1.4rem' }}>BUSCÁ TU VIAJE</h3>
-            <p>Usá los filtros de arriba para encontrar compañeros.</p>
           </div>
         ) : trips.length === 0 ? (
           <div className="empty-state">
@@ -144,7 +124,7 @@ export default function Search() {
         ) : (
           <>
             <p style={{ fontSize: '0.8rem', color: 'var(--text2)', marginBottom: 14 }}>
-              {trips.length} viaje{trips.length !== 1 ? 's' : ''} encontrado{trips.length !== 1 ? 's' : ''}
+              {trips.length} viaje{trips.length !== 1 ? 's' : ''} disponible{trips.length !== 1 ? 's' : ''}
             </p>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {trips.map(t => <TripCard key={t.id} trip={t} />)}
