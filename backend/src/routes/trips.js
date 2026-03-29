@@ -1,16 +1,10 @@
 const express  = require('express');
 const supabase = require('../db');
 const auth     = require('../middleware/auth');
-const { MercadoPagoConfig, Preference } = require('mercadopago');
 
 const router = express.Router();
 
-const mpClient = new MercadoPagoConfig({
-  accessToken: process.env.MP_ACCESS_TOKEN
-});
-
 // ─── GET /api/trips ──────────────────────────────────────────────────────────
-// Query params: tipo, zona, fecha (YYYY-MM-DD)
 router.get('/', auth, async (req, res) => {
   try {
     const { tipo, zona, fecha } = req.query;
@@ -40,10 +34,49 @@ router.get('/', auth, async (req, res) => {
 
     const { data, error } = await query;
     if (error) throw error;
-
     res.json(data);
   } catch (err) {
     console.error('Get trips error:', err);
+    res.status(500).json({ error: 'Error al obtener los viajes.' });
+  }
+});
+
+// ─── GET /api/trips/my/created ───────────────────────────────────────────────
+// OJO: estas rutas fijas DEBEN ir ANTES de /:id para que Express no las confunda
+router.get('/my/created', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('viajes')
+      .select('id, tipo, zona_comun, barrio, fecha_hora, cupos_disponibles, activo, created_at')
+      .eq('id_creador', req.user.id)
+      .order('fecha_hora', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Get my trips error:', err);
+    res.status(500).json({ error: 'Error al obtener tus viajes.' });
+  }
+});
+
+// ─── GET /api/trips/my/joined ────────────────────────────────────────────────
+router.get('/my/joined', auth, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('participantes')
+      .select(`
+        id, estado_pago, created_at,
+        viajes:id_viaje ( id, tipo, zona_comun, barrio, fecha_hora, cupos_disponibles, activo,
+          profiles:id_creador ( nombre, apellido, rating_promedio )
+        )
+      `)
+      .eq('id_usuario', req.user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+    res.json(data);
+  } catch (err) {
+    console.error('Get joined trips error:', err);
     res.status(500).json({ error: 'Error al obtener los viajes.' });
   }
 });
@@ -56,7 +89,6 @@ router.post('/', auth, async (req, res) => {
     if (!tipo || !zona_comun || !barrio || !fecha_hora) {
       return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
     }
-
     if (!['IDA', 'VUELTA'].includes(tipo)) {
       return res.status(400).json({ error: 'Tipo debe ser IDA o VUELTA.' });
     }
@@ -66,12 +98,13 @@ router.post('/', auth, async (req, res) => {
       return res.status(400).json({ error: 'La fecha debe ser en el futuro.' });
     }
 
-    // Verificar duplicado del creador (mismo tipo + día)
+    // Rango del día completo (UTC)
     const startOfDay = new Date(fechaViaje);
-    startOfDay.setHours(0, 0, 0, 0);
+    startOfDay.setUTCHours(0, 0, 0, 0);
     const endOfDay = new Date(fechaViaje);
-    endOfDay.setHours(23, 59, 59, 999);
+    endOfDay.setUTCHours(23, 59, 59, 999);
 
+    // 1) El creador no puede tener otro viaje del mismo tipo ese día
     const { data: myDuplicate } = await supabase
       .from('viajes')
       .select('id')
@@ -87,19 +120,20 @@ router.post('/', auth, async (req, res) => {
       });
     }
 
-    // Verificar duplicado global (misma zona + fecha/hora exacta)
-    const fechaIso = fechaViaje.toISOString();
+    // 2) No puede existir otro viaje con la misma zona + mismo tipo + mismo día
+    //    (sin importar la hora exacta — evita sobreoferta en el mismo punto)
     const { data: globalDuplicate } = await supabase
       .from('viajes')
       .select('id')
       .eq('tipo', tipo)
       .eq('zona_comun', zona_comun)
-      .eq('fecha_hora', fechaIso)
-      .eq('activo', true);
+      .eq('activo', true)
+      .gte('fecha_hora', startOfDay.toISOString())
+      .lte('fecha_hora', endOfDay.toISOString());
 
     if (globalDuplicate && globalDuplicate.length > 0) {
       return res.status(409).json({
-        error: 'Ya existe un viaje en esa zona a esa misma hora. Buscalo en la lista y unite.'
+        error: 'Ya existe un viaje desde/hacia esa zona ese día. Buscalo en la lista y unite.'
       });
     }
 
@@ -120,7 +154,6 @@ router.post('/', auth, async (req, res) => {
       .single();
 
     if (error) throw error;
-
     res.status(201).json(viaje);
   } catch (err) {
     console.error('Create trip error:', err);
@@ -146,7 +179,6 @@ router.get('/:id', auth, async (req, res) => {
       return res.status(404).json({ error: 'Viaje no encontrado.' });
     }
 
-    // Obtener participantes — WhatsApp solo visible si el usuario pagó o es el creador
     const { data: participantes } = await supabase
       .from('participantes')
       .select(`
@@ -156,32 +188,30 @@ router.get('/:id', auth, async (req, res) => {
       .eq('id_viaje', id)
       .eq('estado_pago', true);
 
-    const esCreador  = viaje.profiles.id === req.user.id;
-    const esPasajero = participantes?.some(p => p.profiles.id === req.user.id);
-    const puedeVerWA = esCreador || esPasajero;
+    const esCreador    = viaje.profiles.id === req.user.id;
+    const yaEsPasajero = participantes?.some(p => p.profiles.id === req.user.id);
+    const puedeVerWA   = esCreador || yaEsPasajero;
 
     const participantesPublicos = (participantes || []).map(p => ({
-      id:             p.id,
-      estado_pago:    p.estado_pago,
-      nombre:         p.profiles.nombre,
-      apellido:       p.profiles.apellido,
+      id:              p.id,
+      estado_pago:     p.estado_pago,
+      nombre:          p.profiles.nombre,
+      apellido:        p.profiles.apellido,
       rating_promedio: p.profiles.rating_promedio,
-      whatsapp:       puedeVerWA ? p.profiles.whatsapp : null,
-      id_usuario:     p.profiles.id
+      whatsapp:        puedeVerWA ? p.profiles.whatsapp : null,
+      id_usuario:      p.profiles.id
     }));
 
-    // Agregar creador a la lista de contactos si el user puede ver
     const creadorPublico = {
-      id_usuario:     viaje.profiles.id,
-      nombre:         viaje.profiles.nombre,
-      apellido:       viaje.profiles.apellido,
+      id_usuario:      viaje.profiles.id,
+      nombre:          viaje.profiles.nombre,
+      apellido:        viaje.profiles.apellido,
       rating_promedio: viaje.profiles.rating_promedio,
-      whatsapp:       puedeVerWA ? null : null, // WhatsApp del creador: fetch por separado si es necesario
-      es_creador:     true
+      whatsapp:        null,
+      es_creador:      true
     };
 
     if (puedeVerWA) {
-      // Fetch WhatsApp del creador
       const { data: creadorData } = await supabase
         .from('profiles')
         .select('whatsapp')
@@ -189,9 +219,6 @@ router.get('/:id', auth, async (req, res) => {
         .single();
       if (creadorData) creadorPublico.whatsapp = creadorData.whatsapp;
     }
-
-    // ¿Puede unirse el usuario? (no es creador, no está ya, hay cupos)
-    const yaEsPasajero = participantes?.some(p => p.profiles.id === req.user.id);
 
     res.json({
       ...viaje,
@@ -201,7 +228,6 @@ router.get('/:id', auth, async (req, res) => {
       es_creador:      esCreador,
       ya_es_pasajero:  yaEsPasajero
     });
-
   } catch (err) {
     console.error('Get trip error:', err);
     res.status(500).json({ error: 'Error al obtener el viaje.' });
@@ -238,8 +264,8 @@ router.post('/:id/join', auth, async (req, res) => {
       await supabase.from('participantes').update({ estado_pago: true }).eq('id', existente.id);
     } else {
       await supabase.from('participantes').insert({
-        id_viaje: id,
-        id_usuario: req.user.id,
+        id_viaje:    id,
+        id_usuario:  req.user.id,
         estado_pago: true
       });
     }
@@ -257,7 +283,6 @@ router.post('/:id/join', auth, async (req, res) => {
 });
 
 // ─── DELETE /api/trips/:id/leave ─────────────────────────────────────────────
-// El pasajero sale del viaje (sin reembolso)
 router.delete('/:id/leave', auth, async (req, res) => {
   try {
     const { id } = req.params;
@@ -273,18 +298,13 @@ router.delete('/:id/leave', auth, async (req, res) => {
       return res.status(404).json({ error: 'No estás en este viaje.' });
     }
 
-    // Eliminar participante
-    await supabase
-      .from('participantes')
-      .delete()
-      .eq('id', participante.id);
+    await supabase.from('participantes').delete().eq('id', participante.id);
 
-    // Si había pagado, liberar el cupo
     if (participante.estado_pago) {
       await supabase.rpc('increment_cupos', { viaje_id: id });
     }
 
-    res.json({ message: 'Saliste del viaje. El servicio no es reembolsable.' });
+    res.json({ message: 'Saliste del viaje.' });
   } catch (err) {
     console.error('Leave trip error:', err);
     res.status(500).json({ error: 'Error al salir del viaje.' });
@@ -292,74 +312,25 @@ router.delete('/:id/leave', auth, async (req, res) => {
 });
 
 // ─── DELETE /api/trips/:id ───────────────────────────────────────────────────
-// El creador cancela el viaje
 router.delete('/:id', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
     const { data: viaje, error } = await supabase
       .from('viajes')
-      .select('id, id_creador, fecha_hora')
+      .select('id, id_creador')
       .eq('id', id)
       .single();
 
-    if (error || !viaje) {
-      return res.status(404).json({ error: 'Viaje no encontrado.' });
-    }
+    if (error || !viaje) return res.status(404).json({ error: 'Viaje no encontrado.' });
+    if (viaje.id_creador !== req.user.id) return res.status(403).json({ error: 'Solo el creador puede cancelar el viaje.' });
 
-    if (viaje.id_creador !== req.user.id) {
-      return res.status(403).json({ error: 'Solo el creador puede cancelar el viaje.' });
-    }
-
-    // Marcar como inactivo (soft delete)
-    await supabase
-      .from('viajes')
-      .update({ activo: false })
-      .eq('id', id);
+    await supabase.from('viajes').update({ activo: false }).eq('id', id);
 
     res.json({ message: 'Viaje cancelado.' });
   } catch (err) {
     console.error('Delete trip error:', err);
     res.status(500).json({ error: 'Error al cancelar el viaje.' });
-  }
-});
-
-// ─── GET /api/trips/my/created ───────────────────────────────────────────────
-router.get('/my/created', auth, async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('viajes')
-      .select('id, tipo, zona_comun, barrio, fecha_hora, cupos_disponibles, activo, created_at')
-      .eq('id_creador', req.user.id)
-      .order('fecha_hora', { ascending: false });
-
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    console.error('Get my trips error:', err);
-    res.status(500).json({ error: 'Error al obtener tus viajes.' });
-  }
-});
-
-// ─── GET /api/trips/my/joined ────────────────────────────────────────────────
-router.get('/my/joined', auth, async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from('participantes')
-      .select(`
-        id, estado_pago, created_at,
-        viajes:id_viaje ( id, tipo, zona_comun, barrio, fecha_hora, cupos_disponibles, activo,
-          profiles:id_creador ( nombre, apellido, rating_promedio )
-        )
-      `)
-      .eq('id_usuario', req.user.id)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-    res.json(data);
-  } catch (err) {
-    console.error('Get joined trips error:', err);
-    res.status(500).json({ error: 'Error al obtener los viajes.' });
   }
 });
 
