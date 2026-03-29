@@ -10,6 +10,10 @@ const DOMINIO_VALIDO = '@soysiglo.21.edu.ar';
 
 // ─── POST /api/auth/register ─────────────────────────────────────────────────
 router.post('/register', async (req, res) => {
+  return res.status(403).json({
+    error: 'El registro está temporalmente desactivado. Contactá al administrador para obtener acceso.'
+  });
+
   try {
     const { email, password, nombre, apellido, whatsapp } = req.body;
 

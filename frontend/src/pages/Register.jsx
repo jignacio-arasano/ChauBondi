@@ -41,8 +41,41 @@ export default function Register() {
       setLoading(false);
     }
   }
-
   return (
+  <div style={{
+    minHeight: '100dvh',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 32,
+    background: 'var(--bg)',
+    textAlign: 'center'
+  }}>
+    <div style={{ fontSize: '3rem', marginBottom: 20 }}>🔒</div>
+    <h1 style={{ fontFamily: 'var(--font-head)', fontSize: '2rem', marginBottom: 12 }}>
+      REGISTRO CERRADO
+    </h1>
+    <p style={{ color: 'var(--text2)', lineHeight: 1.7, maxWidth: 320, marginBottom: 28 }}>
+      ChauBondi está en fase de acceso cerrado.<br />
+      Si sos estudiante de la Siglo 21 y querés probarla,
+      escribinos para que te demos acceso manualmente.
+    </p>
+      <a
+      href="https://wa.me/542994654971?text=Hola%2C%20quiero%20acceso%20a%20ChauBondi%20🚌"
+      target="_blank"
+      rel="noreferrer"
+      className="btn btn-whatsapp btn-full"
+      style={{ maxWidth: 320 }}
+    >
+      Pedir acceso por WhatsApp
+    </a>
+    <Link to="/login" className="btn btn-secondary btn-full" style={{ maxWidth: 320, marginTop: 10 }}>
+      Ya tengo cuenta → Ingresar
+    </Link>
+  </div>
+);
+  /*return (
     <div style={{ minHeight: '100dvh', background: 'var(--bg)' }}>
       <div style={{
         padding: '40px 24px 20px',
@@ -125,5 +158,6 @@ export default function Register() {
         </div>
       </div>
     </div>
-  );
+  );*/
+  
 }
