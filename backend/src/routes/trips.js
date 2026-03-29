@@ -82,84 +82,47 @@ router.get('/my/joined', auth, async (req, res) => {
 });
 
 // ─── POST /api/trips ─────────────────────────────────────────────────────────
-router.post('/', auth, async (req, res) => {
-  try {
-    const { tipo, zona_comun, barrio, fecha_hora } = req.body;
+// 1) Duplicado del creador: mismo tipo, mismo día calendario
+const { data: misViajes } = await supabase
+  .from('viajes')
+  .select('id, fecha_hora')
+  .eq('id_creador', req.user.id)
+  .eq('tipo', tipo)
+  .eq('activo', true)
+  .gt('fecha_hora', new Date().toISOString());
 
-    if (!tipo || !zona_comun || !barrio || !fecha_hora) {
-      return res.status(400).json({ error: 'Todos los campos son obligatorios.' });
-    }
-    if (!['IDA', 'VUELTA'].includes(tipo)) {
-      return res.status(400).json({ error: 'Tipo debe ser IDA o VUELTA.' });
-    }
+const fechaDia = fechaViaje.toISOString().slice(0, 10); // "2026-03-31"
 
-    const fechaViaje = new Date(fecha_hora);
-    if (isNaN(fechaViaje.getTime()) || fechaViaje <= new Date()) {
-      return res.status(400).json({ error: 'La fecha debe ser en el futuro.' });
-    }
+const tieneMioDuplicado = (misViajes || []).some(v =>
+  v.fecha_hora.slice(0, 10) === fechaDia
+);
 
-    // Rango del día completo (UTC)
-    const startOfDay = new Date(fechaViaje);
-    startOfDay.setUTCHours(0, 0, 0, 0);
-    const endOfDay = new Date(fechaViaje);
-    endOfDay.setUTCHours(23, 59, 59, 999);
+if (tieneMioDuplicado) {
+  return res.status(409).json({
+    error: 'Ya tenés un viaje del mismo tipo publicado para ese día.'
+  });
+}
 
-    // 1) El creador no puede tener otro viaje del mismo tipo ese día
-    const { data: myDuplicate } = await supabase
-      .from('viajes')
-      .select('id')
-      .eq('id_creador', req.user.id)
-      .eq('tipo', tipo)
-      .eq('activo', true)
-      .gte('fecha_hora', startOfDay.toISOString())
-      .lte('fecha_hora', endOfDay.toISOString());
+// 2) Duplicado global: misma zona + mismo tipo + mismo día
+const { data: viajesZona } = await supabase
+  .from('viajes')
+  .select('id, fecha_hora')
+  .eq('tipo', tipo)
+  .eq('zona_comun', zona_comun)
+  .eq('activo', true)
+  .gt('fecha_hora', new Date().toISOString());
 
-    if (myDuplicate && myDuplicate.length > 0) {
-      return res.status(409).json({
-        error: 'Ya tenés un viaje del mismo tipo publicado para ese día.'
-      });
-    }
+console.log('Viajes en esa zona:', viajesZona); // para debug en Railway logs
 
-    // 2) No puede existir otro viaje con la misma zona + mismo tipo + mismo día
-    //    (sin importar la hora exacta — evita sobreoferta en el mismo punto)
-    const { data: globalDuplicate } = await supabase
-      .from('viajes')
-      .select('id')
-      .eq('tipo', tipo)
-      .eq('zona_comun', zona_comun)
-      .eq('activo', true)
-      .gte('fecha_hora', startOfDay.toISOString())
-      .lte('fecha_hora', endOfDay.toISOString());
+const existeDuplicadoGlobal = (viajesZona || []).some(v =>
+  v.fecha_hora.slice(0, 10) === fechaDia
+);
 
-    if (globalDuplicate && globalDuplicate.length > 0) {
-      return res.status(409).json({
-        error: 'Ya existe un viaje desde/hacia esa zona ese día. Buscalo en la lista y unite.'
-      });
-    }
-
-    const { data: viaje, error } = await supabase
-      .from('viajes')
-      .insert({
-        id_creador:        req.user.id,
-        tipo,
-        zona_comun,
-        barrio:            barrio.trim(),
-        fecha_hora:        fechaViaje.toISOString(),
-        cupos_disponibles: 3
-      })
-      .select(`
-        id, tipo, zona_comun, barrio, fecha_hora, cupos_disponibles, activo, created_at,
-        profiles:id_creador ( id, nombre, apellido, rating_promedio )
-      `)
-      .single();
-
-    if (error) throw error;
-    res.status(201).json(viaje);
-  } catch (err) {
-    console.error('Create trip error:', err);
-    res.status(500).json({ error: 'Error al crear el viaje.' });
-  }
-});
+if (existeDuplicadoGlobal) {
+  return res.status(409).json({
+    error: 'Ya existe un viaje desde/hacia esa zona ese día. Buscalo en la lista y unite.'
+  });
+}
 
 // ─── GET /api/trips/:id ──────────────────────────────────────────────────────
 router.get('/:id', auth, async (req, res) => {
