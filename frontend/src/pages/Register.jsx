@@ -24,10 +24,10 @@ export default function Register() {
       setError('Las contraseñas no coinciden.');
       return;
     }
-    if (!form.email.toLowerCase().endsWith('@soysiglo21.edu.ar')) {
-      setError('Usá tu correo institucional @soysiglo21.edu.ar');
-      return;
-    }
+    if (!form.email.toLowerCase().endsWith('@soysiglo.21.edu.ar')) {
+  setError('Usá tu correo institucional @soysiglo.21.edu.ar');
+  return;
+        }
     setLoading(true);
     setError('');
     try {
