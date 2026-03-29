@@ -82,8 +82,28 @@ export default function Home() {
             onClick={() => navigate('/create')}
             style={{ marginTop: 12 }}
           >
-            ➕ Publicar mi viaje
+            ➕ Publicar mi viaje 
           </button>
+          {/* Banner beta */}
+          <div style={{
+            marginTop: 16,
+            padding: '12px 16px',
+            background: 'rgba(255,107,53,0.08)',
+            border: '1px solid rgba(255,107,53,0.25)',
+            borderRadius: 10,
+            fontSize: '0.8rem',
+            lineHeight: 1.5,
+            color: 'var(--text2)'
+          }}>
+            <div style={{ fontWeight: 700, color: 'var(--orange)', marginBottom: 4 }}>
+              🎉 FASE BETA — Por ahora es gratis para todos
+            </div>
+            En el futuro, para sostener la plataforma, el 3er integrante de cada viaje
+            aportará <strong style={{ color: 'var(--text)' }}>$150</strong> y el 4to{' '}
+            <strong style={{ color: 'var(--text)' }}>$350</strong>. El organizador y el
+            primer pasajero siempre entran gratis. Lo recaudado se destina exclusivamente
+            al mantenimiento de ChauBondi. 🚌
+          </div>
         </div>
       </div>
 

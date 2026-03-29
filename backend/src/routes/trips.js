@@ -18,7 +18,8 @@ router.get('/', auth, async (req, res) => {
       .eq('activo', true)
       .gt('cupos_disponibles', 0)
       .gt('fecha_hora', new Date().toISOString())
-      .order('fecha_hora', { ascending: true });
+      .order('fecha_hora', { ascending: true })
+      .order('cupos_disponibles', { ascending: true });
 
     if (tipo) query = query.eq('tipo', tipo);
     if (zona) query = query.eq('zona_comun', zona);
@@ -102,12 +103,13 @@ router.post('/', auth, async (req, res) => {
 
     // 1) El creador no puede tener otro viaje del mismo tipo ese día
     const { data: misViajes } = await supabase
-      .from('viajes')
-      .select('id, fecha_hora')
-      .eq('id_creador', req.user.id)
-      .eq('tipo', tipo)
-      .eq('activo', true)
-      .gt('fecha_hora', new Date().toISOString());
+    .from('viajes')
+    .select('id, fecha_hora')
+    .eq('id_creador', req.user.id)
+    .eq('tipo', tipo)
+    .eq('activo', true)
+    .gt('cupos_disponibles', 0)
+    .gt('fecha_hora', new Date().toISOString());
 
     const tieneMioDuplicado = (misViajes || []).some(v =>
       v.fecha_hora.slice(0, 10) === fechaDia
@@ -122,12 +124,13 @@ router.post('/', auth, async (req, res) => {
     // 2) No puede existir otro viaje con misma zona + mismo tipo + mismo día
     //    con menos de 15 minutos de diferencia
     const { data: viajesZona } = await supabase
-      .from('viajes')
-      .select('id, fecha_hora')
-      .eq('tipo', tipo)
-      .eq('zona_comun', zona_comun)
-      .eq('activo', true)
-      .gt('fecha_hora', new Date().toISOString());
+    .from('viajes')
+    .select('id, fecha_hora')
+    .eq('tipo', tipo)
+    .eq('zona_comun', zona_comun)
+    .eq('activo', true)
+    .gt('cupos_disponibles', 0)
+    .gt('fecha_hora', new Date().toISOString());
 
     const MINUTOS_15 = 15 * 60 * 1000;
 
