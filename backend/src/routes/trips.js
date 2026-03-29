@@ -193,117 +193,50 @@ router.get('/:id', auth, async (req, res) => {
 });
 
 // ─── POST /api/trips/:id/join ────────────────────────────────────────────────
-// Crea un participante y devuelve la URL de pago de MercadoPago
 router.post('/:id/join', auth, async (req, res) => {
   try {
     const { id } = req.params;
 
-    // Verificar que el viaje existe y tiene cupo
     const { data: viaje, error: viajeError } = await supabase
       .from('viajes')
-      .select('id, id_creador, cupos_disponibles, activo, tipo, zona_comun, barrio, fecha_hora')
+      .select('id, id_creador, cupos_disponibles, activo, fecha_hora')
       .eq('id', id)
       .single();
 
-    if (viajeError || !viaje) {
-      return res.status(404).json({ error: 'Viaje no encontrado.' });
-    }
+    if (viajeError || !viaje) return res.status(404).json({ error: 'Viaje no encontrado.' });
+    if (viaje.id_creador === req.user.id) return res.status(400).json({ error: 'No podés unirte a tu propio viaje.' });
+    if (!viaje.activo) return res.status(400).json({ error: 'Este viaje ya no está activo.' });
+    if (viaje.cupos_disponibles <= 0) return res.status(400).json({ error: 'No hay cupos disponibles.' });
+    if (new Date(viaje.fecha_hora) <= new Date()) return res.status(400).json({ error: 'Este viaje ya pasó.' });
 
-    if (viaje.id_creador === req.user.id) {
-      return res.status(400).json({ error: 'No podés unirte a tu propio viaje.' });
-    }
-
-    if (!viaje.activo) {
-      return res.status(400).json({ error: 'Este viaje ya no está activo.' });
-    }
-
-    if (viaje.cupos_disponibles <= 0) {
-      return res.status(400).json({ error: 'No hay cupos disponibles.' });
-    }
-
-    if (new Date(viaje.fecha_hora) <= new Date()) {
-      return res.status(400).json({ error: 'Este viaje ya pasó.' });
-    }
-
-    // Verificar que no esté ya unido
     const { data: existente } = await supabase
       .from('participantes')
-      .select('id, estado_pago, mp_preference_id')
+      .select('id, estado_pago')
       .eq('id_viaje', id)
       .eq('id_usuario', req.user.id)
       .single();
 
+    if (existente?.estado_pago) return res.status(409).json({ error: 'Ya sos parte de este viaje.' });
+
     if (existente) {
-      if (existente.estado_pago) {
-        return res.status(409).json({ error: 'Ya sos parte de este viaje.' });
-      }
-      // Si ya tiene un intento de pago pendiente, devolver la misma URL
-      if (existente.mp_preference_id) {
-        const prefClient = new Preference(mpClient);
-        const pref = await prefClient.get({ preferenceId: existente.mp_preference_id });
-        return res.json({ checkout_url: pref.init_point, preference_id: pref.id });
-      }
-    }
-
-    // Crear preferencia en MercadoPago
-    const prefClient = new Preference(mpClient);
-    const fechaFormateada = new Date(viaje.fecha_hora).toLocaleString('es-AR', {
-      timeZone: 'America/Argentina/Cordoba',
-      dateStyle: 'short',
-      timeStyle: 'short'
-    });
-
-    const preference = await prefClient.create({
-      body: {
-        items: [{
-          title:      `ChauBondi - ${viaje.tipo === 'IDA' ? 'Ida al Campus' : 'Vuelta a casa'}`,
-          description: `${viaje.zona_comun} • ${viaje.barrio} • ${fechaFormateada}`,
-          quantity:   1,
-          unit_price: 200,
-          currency_id: 'ARS'
-        }],
-        payer: {
-          email: req.user.email
-        },
-        back_urls: {
-          success: `${process.env.FRONTEND_URL}/payment/success`,
-          failure: `${process.env.FRONTEND_URL}/payment/failure`,
-          pending: `${process.env.FRONTEND_URL}/payment/pending`
-        },
-        auto_return: 'approved',
-        external_reference: `${id}:${req.user.id}`,
-        notification_url:   `${process.env.BACKEND_URL}/api/payments/webhook`,
-        statement_descriptor: 'CHAUBONDI',
-        expires: true,
-        expiration_date_to: new Date(new Date(viaje.fecha_hora).getTime() - 60 * 60 * 1000).toISOString()
-      }
-    });
-
-    // Crear o actualizar registro de participante (sin pago aún)
-    if (existente) {
-      await supabase
-        .from('participantes')
-        .update({ mp_preference_id: preference.id })
-        .eq('id', existente.id);
+      await supabase.from('participantes').update({ estado_pago: true }).eq('id', existente.id);
     } else {
-      await supabase
-        .from('participantes')
-        .insert({
-          id_viaje:        id,
-          id_usuario:      req.user.id,
-          estado_pago:     false,
-          mp_preference_id: preference.id
-        });
+      await supabase.from('participantes').insert({
+        id_viaje: id,
+        id_usuario: req.user.id,
+        estado_pago: true
+      });
     }
 
-    res.json({
-      checkout_url:  preference.init_point,
-      preference_id: preference.id
-    });
+    await supabase
+      .from('viajes')
+      .update({ cupos_disponibles: viaje.cupos_disponibles - 1 })
+      .eq('id', id);
 
+    res.json({ joined: true });
   } catch (err) {
     console.error('Join trip error:', err);
-    res.status(500).json({ error: 'Error al procesar el pago. Intentá de nuevo.' });
+    res.status(500).json({ error: 'Error al unirte al viaje.' });
   }
 });
 

@@ -66,15 +66,18 @@ export default function TripDetail() {
   }, [id]);
 
   async function handleJoin() {
-    setJoining(true);
-    setError('');
-    try {
-      const { checkout_url } = await api.trips.join(id);
-      window.location.href = checkout_url;
-    } catch (err) {
-      setError(err.message);
-      setJoining(false);
-    }
+  setJoining(true);
+  setError('');
+  try {
+    await api.trips.join(id);
+    // Recargar el viaje para mostrar el grupo actualizado
+    const updated = await api.trips.get(id);
+    setViaje(updated);
+  } catch (err) {
+    setError(err.message);
+  } finally {
+    setJoining(false);
+  }
   }
 
   async function handleLeave() {
@@ -247,21 +250,16 @@ export default function TripDetail() {
         {activo && !yaFue && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
             {puede_unirse && (
-              <>
-                <div className="alert alert-info" style={{ fontSize: '0.82rem' }}>
-                  💳 Para ver los datos de contacto del grupo, pagás <strong>$200</strong> (sin reembolso) mediante Mercado Pago.
-                </div>
-                <button
-                  className="btn btn-primary btn-full"
-                  onClick={handleJoin}
-                  disabled={joining}
-                >
-                  {joining
-                    ? <><span className="spinner" style={{ width: 18, height: 18 }} /> Redirigiendo a MP…</>
-                    : '🤝 Unirme al viaje — $200'}
-                </button>
-              </>
-            )}
+  <button
+    className="btn btn-primary btn-full"
+    onClick={handleJoin}
+    disabled={joining}
+  >
+    {joining
+      ? <><span className="spinner" style={{ width: 18, height: 18 }} /> Uniéndote…</>
+      : '🤝 Unirme al viaje'}
+  </button>
+)}
 
             {ya_es_pasajero && (
               <>

@@ -4,13 +4,24 @@ import { api } from '../api';
 import TripCard from '../components/TripCard';
 
 const ZONAS = [
-  'Patio Olmos / Buen Pastor / Plaza España',
-  'Plaza San Martín / Terminal T2',
-  'Plaza Colón',
-  'Plaza Alberdi',
-  'Mujer Urbana / Parque de las Naciones',
-  'Paseo del Jockey',
-  'Plaza Rivadavia'
+  'Patio Olmos Shopping (Entrada principal) - Barrio Centro / Nueva Córdoba',
+  'Paseo del Buen Pastor (Frente a la fuente) - Barrio Nueva Córdoba',
+  'Plaza España (Ingreso al Museo Metropolitano) - Barrio Nueva Córdoba',
+  'Plaza San Martín (Frente a la Catedral) - Barrio Centro',
+  'Nuevocentro Shopping (Entrada principal sobre Av. Duarte Quirós) - Barrio Alberdi',
+  'Plaza Colón (Sobre Av. Colón) - Barrio Alberdi',
+  'Plaza Alberdi (Sobre Av. 24 de Septiembre) - Barrio General Paz',
+  'Plaza Rivadavia (Frente al Centro Cultural) - Barrio Alta Córdoba',
+  'Paseo del Jockey (Entrada sobre calle Elías Yofre) - Barrio Jardín',
+  'Córdoba Shopping (Entrada principal sobre calle José de Goyechea) - Barrio Villa Cabrera',
+  'Mujer Urbana (Nudo vial frente a los locales gastronómicos) - Barrio Cerro de las Rosas',
+  'Dino Mall Alto Verde (Entrada principal sobre Av. Rodríguez del Busto) - Barrio Alto Verde',
+  'Plaza Jerónimo del Barco (Sobre Av. Colón) - Barrio Alto Alberdi',
+  'Terminal de Ómnibus T2 (Nueva Terminal, sector de informes) - Barrio Centro / Juniors',
+  'Parque de las Naciones (Ingreso principal sobre calle Mariano Larra) - Barrio Urca / Cerro',
+  'Palacio 6 de Julio (Explanada de la Municipalidad) - Barrio Centro',
+  'Plaza de la Intendencia (Frente a Tribunales I) - Barrio Centro',
+  'Paseo Rivera Indarte (Entrada principal del centro comercial) - Barrio Villa Rivera Indarte',
 ];
 
 export default function Search() {
