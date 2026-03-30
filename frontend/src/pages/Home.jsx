@@ -96,14 +96,10 @@ export default function Home() {
             color: 'var(--text2)'
           }}>
             <div style={{ fontWeight: 700, color: 'var(--orange)', marginBottom: 4 }}>
-              🎉 FASE BETA — Por ahora es gratis para todos
-            </div>
-            En el futuro, para sostener la plataforma, el 3er integrante de cada viaje
-            aportará <strong style={{ color: 'var(--text)' }}>$150</strong> y el 4to{' '}
-            <strong style={{ color: 'var(--text)' }}>$350</strong>. El organizador y el
-            primer pasajero siempre entran gratis. Lo recaudado se destina exclusivamente
-            al mantenimiento de ChauBondi. 🚌
-      </div>
+          🎉 FASE BETA — Primeros Testers
+        </div>
+        Estamos probando la plataforma en exclusiva con los primeros usuarios de la Siglo. Animate a ser de los primeros en publicar tu viaje al Campus o de vuelta a casa. ¡Cuantos más viajes armemos esta semana, más fácil va a ser coordinar entre todos! 🚌
+              </div>
         </div>
       </div>
 
@@ -111,16 +107,16 @@ export default function Home() {
         {/* Calificaciones pendientes */}
         {pending.length > 0 && (
           <div className="alert alert-info" style={{ marginBottom: 20 }}>
-          <strong>🚀 ChauBondi está en Fase Beta</strong>
-          {' '}— ¡Animate a publicar tu viaje para mañana al Campus y ayudá a armar los primeros grupos!
-          <button
-            className="btn btn-sm"
-            onClick={() => navigate('/publicar')} 
-            style={{ marginTop: 8, width: '100%', background: 'rgba(61,142,255,0.15)', color: 'var(--blue)', border: '1px solid rgba(61,142,255,0.3)' }}
-          >
-            Publicar viaje ahora
-          </button>
-        </div>
+            <strong>⭐ Tenés {pending.length} calificación{pending.length > 1 ? 'es' : ''} pendiente{pending.length > 1 ? 's' : ''}</strong>
+            {' '}— ayudá a la comunidad puntuando a tus compañeros.
+            <button
+              className="btn btn-sm"
+              onClick={() => navigate('/profile?tab=ratings')}
+              style={{ marginTop: 8, width: '100%', background: 'rgba(61,142,255,0.15)', color: 'var(--blue)', border: '1px solid rgba(61,142,255,0.3)' }}
+            >
+              Calificar ahora
+            </button>
+          </div>
         )}
 
         {/* Próximos viajes */}
