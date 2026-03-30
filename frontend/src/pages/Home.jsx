@@ -103,7 +103,7 @@ export default function Home() {
             <strong style={{ color: 'var(--text)' }}>$350</strong>. El organizador y el
             primer pasajero siempre entran gratis. Lo recaudado se destina exclusivamente
             al mantenimiento de ChauBondi. 🚌
-          </div>
+      </div>
         </div>
       </div>
 
@@ -111,16 +111,16 @@ export default function Home() {
         {/* Calificaciones pendientes */}
         {pending.length > 0 && (
           <div className="alert alert-info" style={{ marginBottom: 20 }}>
-            <strong>⭐ Tenés {pending.length} calificación{pending.length > 1 ? 'es' : ''} pendiente{pending.length > 1 ? 's' : ''}</strong>
-            {' '}— ayudá a la comunidad puntuando a tus compañeros.
-            <button
-              className="btn btn-sm"
-              onClick={() => navigate('/profile?tab=ratings')}
-              style={{ marginTop: 8, width: '100%', background: 'rgba(61,142,255,0.15)', color: 'var(--blue)', border: '1px solid rgba(61,142,255,0.3)' }}
-            >
-              Calificar ahora
-            </button>
-          </div>
+          <strong>🚀 ChauBondi está en Fase Beta</strong>
+          {' '}— ¡Animate a publicar tu viaje para mañana al Campus y ayudá a armar los primeros grupos!
+          <button
+            className="btn btn-sm"
+            onClick={() => navigate('/publicar')} 
+            style={{ marginTop: 8, width: '100%', background: 'rgba(61,142,255,0.15)', color: 'var(--blue)', border: '1px solid rgba(61,142,255,0.3)' }}
+          >
+            Publicar viaje ahora
+          </button>
+        </div>
         )}
 
         {/* Próximos viajes */}
